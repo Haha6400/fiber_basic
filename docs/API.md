@@ -148,10 +148,12 @@ func (app *App) Options(path string, handlers ...Handler) Router
 func (app *App) Trace(path string, handlers ...Handler) Router
 func (app *App) Patch(path string, handlers ...Handler) Router
 
-// ```Add``` cho phép chỉ định một phương thức làm giá trị
+// Add cho phép chỉ định một phương thức làm giá trị
 func (app *App) Add(method, path string, handlers ...Handler) Router
 
-// ```All``` khởi tạo một route trên tất cả phương thức HTTP
-// Gần gống như ```app.Use``` nhưng không bị bó buộc bởi các tiền tố (gì gì đó cái đoạn ni không hiểu lắm :D)
+/* All khởi tạo một route trên tất cả phương thức HTTP
+ Gần gống như app.Use nhưng không bị bó buộc bởi các tiền tố 
+ (gì gì đó clm cái đoạn ni không hiểu lắm :D)
+ */
 func (app *App) All(path string, handlers ...Handler) Router
 ```
