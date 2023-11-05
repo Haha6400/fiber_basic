@@ -73,3 +73,14 @@ Trong đó:
 - ```func(*fiber.Ctx) error``` là một hàm gọi chứa context khi route matched
 
 ***[Ví dụ đơn giản ](https://pastecord.com/zonezyvyte.swift)***
+
+## 5. Static files
+```
+app.Static(prefix, root string, config... Static)
+```
+Lưu trữ các files tĩnh ở directory tên ```./public```
+```
+app := fiber.New()
+app.Static("/", "./public")
+app.Listen(":3000")
+```
