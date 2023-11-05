@@ -148,12 +148,191 @@ func (app *App) Options(path string, handlers ...Handler) Router
 func (app *App) Trace(path string, handlers ...Handler) Router
 func (app *App) Patch(path string, handlers ...Handler) Router
 
-// Add cho phép chỉ định một phương thức làm giá trị
+// ```Add``` cho phép chỉ định một phương thức làm giá trị
 func (app *App) Add(method, path string, handlers ...Handler) Router
 
-/* All khởi tạo một route trên tất cả phương thức HTTP
- Gần gống như app.Use nhưng không bị bó buộc bởi các tiền tố 
- (gì gì đó clm cái đoạn ni không hiểu lắm :D)
- */
+// All khởi tạo một route trên tất cả phương thức HTTP
+// Gần gống như app.Use nhưng không bị bó buộc bởi các tiền tố (gì gì đó cái đoạn ni không hiểu lắm :D)
 func (app *App) All(path string, handlers ...Handler) Router
+```
+**Example**
+```
+// Simple GET handler
+app.Get("/api/list", func(c *fiber.Ctx) error {
+  return c.SendString("I'm a GET request!")
+})
+
+// Simple POST handler
+app.Post("/api/register", func(c *fiber.Ctx) error {
+  return c.SendString("I'm a POST request!")
+})
+```
+
+**Use**: kiểu ``./john`` sẽ math với cả ``/john/doe, /johnnnnnn``...
+**Signature**
+```
+func (app *App) Use(args ...interface{}) Router
+```
+**Example**
+```
+// Match với bất kì request nào
+app.Use(func(c *fiber.Ctx) error {
+    return c.Next()
+})
+
+// Match với các requests bắt đầu bằng /api
+app.Use("/api", func(c *fiber.Ctx) error {
+    return c.Next()
+})
+
+// Match với các requests bắt đầu bằng /api hoặc /home (multiple-prefix support)
+app.Use([]string{"/api", "/home"}, func(c *fiber.Ctx) error {
+    return c.Next()
+})
+
+// Ping tới những handlers khác
+app.Use("/api", func(c *fiber.Ctx) error {
+  c.Set("X-Custom-Header", random.String(32))
+    return c.Next()
+}, func(c *fiber.Ctx) error {
+    return c.Next()
+})
+```
+
+#### 3. Mount
+**Signature**
+```
+func (a *App) Mount(prefix string, app *App) Router
+```
+=> app là sub-app của a. Nếu truy cập vào đường dẫn có tiền đố /prefix thì sẽ được định hướng tới app để xử lý.
+**Example**
+```
+func main() {
+    app := fiber.New()
+    micro := fiber.New()
+    app.Mount("/john", micro) // GET /john/doe -> 200 OK
+
+    micro.Get("/doe", func(c *fiber.Ctx) error {
+        return c.SendStatus(fiber.StatusOK)
+    })
+
+    log.Fatal(app.Listen(":3000"))
+}
+```
+
+#### 4. MountPath
+MountPath là một cách để gắn ứng dụng con vào một đường dẫn cụ thể bên trong ứng dụng chính, mà không yêu cầu tiền tố như Mount.
+**Signature**
+```
+func (app *App) MountPath() string
+```
+**Example**
+```
+app.MountPath("/public", publicApp)
+```
+=> Gắn ứng dụng con ```publicApp``` vào ứng dụng chính ```app``` tại đường dẫn ```/public```. Khi yêu cầu đến ```/public/file``` được gửi, nó sẽ được xử lý bởi ứng dụng con ```publicApp```
+#### 5. Group
+Nhóm các path và xử lý yêu cầu cho chúng trong một ứng dụng Fiber chính hoặc ứng dụng con.
+**Signature**
+```
+func (app *App) Group(prefix string, handlers ...Handler) Router
+```
+**Example**
+```
+//Tạo nhóm các path có tiền tố /api và sử dụng middleware handler để xử lý tất cả các yêu cầu trong nhóm /api
+  api := app.Group("/api", handler)  // /api
+
+  v1 := api.Group("/v1", handler)   // /api/v1
+  v1.Get("/list", handler)          // /api/v1/list
+  v1.Get("/user", handler)          // /api/v1/user
+
+```
+
+#### 6. Route
+Bạn có thể định nghĩa routes với tiền tố chung bên trong hàm chung
+**Signature**
+```
+func (app *App) Route(prefix string, fn func(router Router), name ...string) Router
+```
+**Example**
+```
+app.Route("/test", func(api fiber.Router) {
+      api.Get("/foo", handler).Name("foo") // /test/foo (name: test.foo)
+    api.Get("/bar", handler).Name("bar") // /test/bar (name: test.bar)
+  }, 
+  ```
+  
+  #### 7. Server
+  Server trả về một fasthttp server cơ bản
+  **Signature**
+  ```
+  func (app *App) Server() *fasthttp.Server
+  ```
+  **Example**
+  ```
+  //Máy chủ Fasthttp cho phép mỗi địa chỉ IP chỉ có 1 kết nối đến máy chủ tại 1 thời điểm
+  app.Server().MaxConnsPerIP = 1
+  ```
+  
+  #### 8. Server Shutdown
+  Server Shutdown tắt server mà không làm ảnh hưởng tới bất kì kết nối đang hoạt động nào. Trước tiên, nó đóng tất cả các trình nghe đang mở, sau đó đợi vô thời hạn cho tới khi tất cả kết nối trở về trạng thái không hoạt động. 
+  ShutdownWithTimeout sẽ tắt mọi kết nối đang hoạt động sau khi hết tgian chờ.
+  ShutdownWithContext tắt server nếu vượt quá thời hạn context
+  **Signature**
+  ```
+  func (app *App) Shutdown() error
+func (app *App) ShutdownWithTimeout(timeout time.Duration) error
+func (app *App) ShutdownWithContext(ctx context.Context) error
+```
+
+#### 9. HandlersCount
+Trả về lượng handlers đã được đăng kí
+**Signature**
+```
+func (app *App) HandlersCount() uint32
+```
+
+#### 10. Stack
+Truy xuất thông tin về trạng thái hiện tại của ứng dụng hoặc máy chủ Fiber
+**Signature**
+```
+func (app *App) Stack() [][]*Route
+```
+**Example**
+```
+app.Get("/john/:age", handler)
+    app.Post("/register", handler)
+
+    data, _ := json.MarshalIndent(app.Stack(), "", "  ")
+    fmt.Println(string(data))
+```
+**Result**
+```
+[
+  [
+    {
+      "method": "GET",
+      "path": "/john/:age",
+      "params": [
+        "age"
+      ]
+    }
+  ],
+  [
+    {
+      "method": "HEAD",
+      "path": "/john/:age",
+      "params": [
+        "age"
+      ]
+    }
+  ],
+  [
+    {
+      "method": "POST",
+      "path": "/register",
+      "params": null
+    }
+  ]
+]
 ```
